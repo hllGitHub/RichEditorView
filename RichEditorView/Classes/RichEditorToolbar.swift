@@ -11,7 +11,7 @@ import UIKit
 
 /// RichEditorToolbarDelegate is a protocol for the RichEditorToolbar.
 /// Used to receive actions that need extra work to perform (eg. display some UI)
-@objc public protocol RichEditorToolbarDelegate: class {
+@objc public protocol RichEditorToolbarDelegate: AnyObject {
 
     /// Called when the Text Color toolbar item is pressed.
     @objc optional func richEditorToolbarChangeTextColor(_ toolbar: RichEditorToolbar, sender: AnyObject)
@@ -96,7 +96,6 @@ private let DefaultFont = UIFont.preferredFont(forTextStyle: .body)
 
         addSubview(visualView)
     }
-    
     
     private func updateToolbar() {
         collectionView.reloadData()
