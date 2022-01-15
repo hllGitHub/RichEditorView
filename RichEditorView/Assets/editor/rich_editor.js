@@ -49,21 +49,6 @@ RE.rangeOrCaretSelectionExists = function() {
     return false;
 };
 
-//RE.editor.addEventListener('input', function() {
-//    RE.updatePlaceholder();
-//    RE.backuprange();
-//    RE.sendInputCallback();
-//});
-//
-//RE.editor.addEventListener('focus', function() {
-//    RE.backuprange();
-//    RE.callback('focus');
-//});
-//
-//RE.editor.addEventListener('blur', function() {
-//    RE.callback('blur');
-//});
-
 RE.customAction = function(action) {
     RE.callback('action/' + action);
 };
@@ -88,6 +73,10 @@ RE.getCommandQueue = function() {
 // Tells the editor that the contents have changed, user input action
 RE.sendInputCallback = function() {
     RE.callback('input');
+};
+
+RE.onSelectionChange = function() {
+    RE.callback('selection');
 };
 
 RE.callback = function(method) {
@@ -234,20 +223,11 @@ RE.setJustifyCenter = function() {
 RE.setJustifyRight = function() {
     RE.command('justifyRight');
 };
-//
-//RE.getLineHeight = function() {
-//    return RE.editor.style.lineHeight;
-//};
-//
-//RE.setLineHeight = function(height) {
-//    RE.editor.style.lineHeight = height;
-//};
 
 RE.insertImage = function(url, alt) {
     const img = document.createElement('img');
     img.setAttribute('src', url);
     img.setAttribute('alt', alt);
-    img.onload = RE.updateHeight;
 
     RE.insertHTML(img.outerHTML);
     RE.sendInputCallback();
@@ -324,6 +304,10 @@ RE.command = function (cmd, value) {
     }
 };
 
+RE.hasAttribute = function(attr) {
+    return RE.editor.attributeIsActive(attr);
+};
+
 RE.backuprange = function() {
     const selection = window.getSelection();
     if (selection.rangeCount === 0) {
@@ -393,6 +377,27 @@ RE.blurFocus = function() {
     RE.editor.blur();
 };
 
+RE.getSelectedRange = function () {
+    // yields [Int, Int]
+    return RE.editor.getSelectedRange();
+};
+
+/// Gets the active attributes from the current selection
+RE.getActiveAttributes = function () {
+    const attrs = [];
+    const includeAttr = (name) => {
+        if (RE.editor.attributeIsActive(name)) {
+            attrs.push(name);
+        }
+    };
+    
+    // check for attrs
+    [
+        'bold', 'italic', 'underline',
+    ].forEach(a => includeAttr(a));
+    return attrs;
+};
+
 /**
 Recursively search element ancestors to find a element nodeName e.g. A
 **/
@@ -458,6 +463,10 @@ window.onload = function() {
     // register events
     editorElement.addEventListener('trix-change', function() {
         RE.onChange();
+    });
+    
+    editorElement.addEventListener('trix-selection-change', function() {
+        RE.onSelectionChange();
     });
 };
 

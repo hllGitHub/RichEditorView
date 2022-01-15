@@ -36,6 +36,10 @@ import WebKit
     /// Called when custom actions are called by callbacks in the JS
     /// By default, this method is not used unless called by some custom JS that you add
     @objc optional func richEditor(_ editor: RichEditorView, handle action: String)
+    
+    /// Called when the selection range changes (or caret position changes)
+    /// The `attrs` provide the active attributes for the selection (e.g. bold, italic, etc)
+    @objc optional func richEditor(_ editor: RichEditorView, selectionDidChange selection: [Int], attributes attrs: [String])
 }
 
 /// RichEditorView is a UIView that displays richly styled text, and allows it to be edited in a WYSIWYG fashion.
@@ -171,9 +175,7 @@ import WebKit
     
     private func setHTML(_ value: String) {
         if isEditorLoaded {
-            runJS("RE.setHtml('\(value.escaped)')") { _ in
-                self.updateHeight()
-            }
+            runJS("RE.setHtml('\(value.escaped)')")
         }
     }
     
@@ -185,14 +187,14 @@ import WebKit
     
     public func getHtml(handler: @escaping (String) -> Void) {
         runJS("RE.getHtml()") { r in
-            handler(r)
+            handler(r as! String)
         }
     }
     
     /// Text representation of the data that has been input into the editor view, if it has been loaded.
     public func getText(handler: @escaping (String) -> Void) {
         runJS("RE.getText()") { r in
-            handler(r)
+            handler(r as! String)
         }
     }
     
@@ -204,7 +206,9 @@ import WebKit
                 handler(nil)
                 return
             }
+            
             self.runJS("RE.getSelectedHref()") { r in
+                let r = r as! String
                 if r == "" {
                     handler(nil)
                 } else {
@@ -217,14 +221,14 @@ import WebKit
     /// Whether or not the selection has a type specifically of "Range".
     public func hasRangeSelection(handler: @escaping (Bool) -> Void) {
         runJS("RE.rangeSelectionExists()") { val in
-            handler((val as NSString).boolValue)
+            handler((val as! NSString).boolValue)
         }
     }
     
     /// Whether or not the selection has a type specifically of "Range" or "Caret".
     public func hasRangeOrCaretSelection(handler: @escaping (Bool) -> Void) {
         runJS("RE.rangeOrCaretSelectionExists()") { val in
-            handler((val as NSString).boolValue)
+            handler((val as! NSString).boolValue)
         }
     }
     
@@ -358,7 +362,7 @@ import WebKit
     /// If there is no result, returns an empty string
     /// - parameter js: The JavaScript string to be run
     /// - returns: The result of the JavaScript that was run
-    public func runJS(_ js: String, handler: ((String) -> Void)? = nil) {
+    public func runJS(_ js: String, handler: ((Any) -> Void)? = nil) {
         webView.evaluateJavaScript(js) { (result, error) in
             if let error = error {
                 print("WKWebViewJavascriptBridge Error: \(String(describing: error)) - JS: \(js)")
@@ -370,23 +374,13 @@ import WebKit
                 return
             }
             
-            if let resultInt = result as? Int {
-                handler("\(resultInt)")
+            guard let data = (result as? String)?.data(using: .utf8) else {
+                handler(result ?? "")
                 return
             }
             
-            if let resultBool = result as? Bool {
-                handler(resultBool ? "true" : "false")
-                return
-            }
-            
-            if let resultStr = result as? String {
-                handler(resultStr)
-                return
-            }
-            
-            // no result
-            handler("")
+            // handle result
+            handler((try? JSONSerialization.jsonObject(with: data)) ?? result ?? "")
         }
     }
     
@@ -404,7 +398,7 @@ import WebKit
     // MARK: WKWebViewDelegate
     
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        // empy
+        // empty
     }
     
     public func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
@@ -414,17 +408,10 @@ import WebKit
             // When we get a callback, we need to fetch the command queue to run the commands
             // It comes in as a JSON array of commands that we need to parse
             runJS("RE.getCommandQueue()") { commands in
-                if let data = commands.data(using: .utf8) {
-                    
-                    let jsonCommands: [String]
-                    do {
-                        jsonCommands = try JSONSerialization.jsonObject(with: data) as? [String] ?? []
-                    } catch {
-                        jsonCommands = []
-                        NSLog("RichEditorView: Failed to parse JSON Commands")
-                    }
-                    
+                if let jsonCommands = commands as? [String] {
                     jsonCommands.forEach(self.performCommand)
+                } else {
+                    print("RichEditorView: Failed to parse JSON Commands: \(commands)")
                 }
             }
             return decisionHandler(WKNavigationActionPolicy.cancel);
@@ -434,7 +421,9 @@ import WebKit
         if navigationAction.navigationType == .linkActivated {
             if let url = navigationAction.request.url {
                 if delegate?.richEditor?(self, shouldInteractWith: url) ?? false {
-                    return decisionHandler(WKNavigationActionPolicy.allow);
+                    return decisionHandler(WKNavigationActionPolicy.allow)
+                } else {
+                    return decisionHandler(WKNavigationActionPolicy.cancel)
                 }
             }
         }
@@ -466,7 +455,7 @@ import WebKit
             // to get the "editable" value is a different property, than to disable it
             // https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/contentEditable
             runJS("RE.editor.isContentEditable") { value in
-                self.editingEnabledVar = Bool(value) ?? false
+                self.editingEnabledVar = value as? Bool ?? false
             }
         }
     }
@@ -477,13 +466,10 @@ import WebKit
     /// Can also return 0 if some sort of error occurs between JS and here.
     private func relativeCaretYPosition(handler: @escaping (Int) -> Void) {
         runJS("RE.getRelativeCaretYPosition()") { r in
-            handler(Int(r) ?? 0)
+            handler(r as? Int ?? 0)
         }
     }
-    
-    private func updateHeight() {
-    }
-    
+        
     /// Called when actions are received from JavaScript
     /// - parameter method: String with the name of the method and optional parameters that were passed in
     private func performCommand(_ method: String) {
@@ -499,25 +485,17 @@ import WebKit
                 delegate?.richEditorDidLoad?(self)
                 isReady = true
             }
-            updateHeight()
-        }
-        else if method.hasPrefix("input") {
+        } else if method.hasPrefix("input") {
             runJS("RE.getHtml()") { content in
-                self.contentHTML = content
+                self.contentHTML = content as! String
             }
-        }
-        else if method.hasPrefix("updateHeight") {
-            updateHeight()
-        }
-        else if method.hasPrefix("focus") {
+        } else if method.hasPrefix("focus") {
             delegate?.richEditorTookFocus?(self)
-        }
-        else if method.hasPrefix("blur") {
+        } else if method.hasPrefix("blur") {
             delegate?.richEditorLostFocus?(self)
-        }
-        else if method.hasPrefix("action/") {
+        } else if method.hasPrefix("action/") {
             runJS("RE.getHtml()") { content in
-                self.contentHTML = content
+                self.contentHTML = content as! String
                 
                 // If there are any custom actions being called
                 // We need to tell the delegate about it
@@ -526,6 +504,13 @@ import WebKit
                 let action = method.replacingCharacters(in: range, with: "")
                 
                 self.delegate?.richEditor?(self, handle: action)
+            }
+        } else if method.hasPrefix("selection") {
+            runJS("RE.getSelectedRange()") { range in
+                self.runJS("RE.getActiveAttributes()") { attrs in
+//                    print("range: \(range) - attrs: \(attrs)")
+                    self.delegate?.richEditor?(self, selectionDidChange: range as! [Int], attributes: attrs as! [String])
+                }
             }
         }
     }
