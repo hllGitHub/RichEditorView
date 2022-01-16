@@ -446,17 +446,18 @@ import WebKit
             editingEnabledVar = contentEditable
             if isEditorLoaded {
                 let value = (contentEditable ? "true" : "false")
-                runJS("RE.editor.contentEditable = \(value)")
+                runJS("RE.setEditable(\(value))")
             }
         }
     }
+    
     private func isContentEditable(handler: @escaping (Bool) -> Void) {
         if isEditorLoaded {
-            // to get the "editable" value is a different property, than to disable it
-            // https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/contentEditable
-            runJS("RE.editor.isContentEditable") { value in
+            runJS("RE.getEditable()") { value in
                 self.editingEnabledVar = value as? Bool ?? false
             }
+        } else {
+            handler(false)
         }
     }
     

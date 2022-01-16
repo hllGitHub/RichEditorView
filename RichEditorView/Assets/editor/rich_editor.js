@@ -113,6 +113,14 @@ RE.updatePlaceholder = function() {
     RE.editor.e.fire('change.placeholder');
 };
 
+RE.setEditable = function(editable) {
+    RE.editor.element.setAttribute('contentEditable', editable);
+};
+
+RE.getEditable = function() {
+    return (RE.editor.element.getAttribute('contentEditable') === 'true');
+};
+
 RE.removeFormat = function() {
     RE.command('removeFormat');
 };
