@@ -44,6 +44,8 @@ body {
 trix-editor {
     border: none;
     padding: 0;
+    min-height: initial;
+    height: 100%;
 }
 
 h1, p, ul, ol {
