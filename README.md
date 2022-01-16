@@ -4,7 +4,8 @@ RichEditorView
 [![Cocoapods](https://img.shields.io/cocoapods/v/RichEditorView.svg)](http://cocoapods.org/pods/RichEditorView)
 [![Carthage compatible](https://img.shields.io/badge/Carthage-compatible-4BC51D.svg)](https://github.com/Carthage/Carthage)
 
-RichEditorView is a simple, modular, drop-in UIView subclass for Rich Text Editing (`WKWebView` wrapper).
+RichEditorView is a simple, modular, drop-in UIView subclass for Rich Text Editing (`WKWebView` wrapper). 
+Uses the [Trix](https://github.com/basecamp/trix) editor under the hood. 
 
 Written in Swift 5.0 (Xcode 11.x)
 
