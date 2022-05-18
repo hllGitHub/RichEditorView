@@ -468,7 +468,7 @@ private let DefaultInnerLineHeight: Int = 21
         if navigationAction.navigationType == .linkActivated {
             if let url = navigationAction.request.url {
                 if delegate?.richEditor?(self, shouldInteractWith: url) ?? false {
-                  delegate?.richEditor?(self, interactWith: url)
+                    delegate?.richEditor?(self, interactWith: url)
                     return decisionHandler(WKNavigationActionPolicy.cancel)
                 }
             }
@@ -578,24 +578,19 @@ private let DefaultInnerLineHeight: Int = 21
                 isReady = true
             }
             updateHeight()
-        }
-        else if method.hasPrefix("input") {
+        } else if method.hasPrefix("input") {
             scrollCaretToVisible()
             runJS("RE.getHtml()") { content in
                 self.contentHTML = content
                 self.updateHeight()
             }
-        }
-        else if method.hasPrefix("updateHeight") {
+        } else if method.hasPrefix("updateHeight") {
             updateHeight()
-        }
-        else if method.hasPrefix("focus") {
+        } else if method.hasPrefix("focus") {
             delegate?.richEditorTookFocus?(self)
-        }
-        else if method.hasPrefix("blur") {
+        } else if method.hasPrefix("blur") {
             delegate?.richEditorLostFocus?(self)
-        }
-        else if method.hasPrefix("action/") {
+        } else if method.hasPrefix("action/") {
             runJS("RE.getHtml()") { content in
                 self.contentHTML = content
                 
